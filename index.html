@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script type="text/javascript" src="jquery.js"></script>
+    <script type="text/javascript">
+      $(document).ready(function(){
+        var game = new Game();
+        game.readKey();
+      });
+      
+      var Game = function(){
+        this.resetGame();
+      };
+      
+      Game.prototype.readKey = function() {
+        var self = this;
+        $(document).keydown(function(e){
+          if(!self.dead){
+            switch(e.which){
+              case 80:
+                if(!self.paused)
+                  self.paused = true;
+                else
+                  self.paused = false;
+              break;
+            }
+          }
+          if(!self.keyRead && !self.paused){
+            switch(e.which){
+              case 38:
+                if(self.direction != 'd')
+                  self.direction = 'u';
+              break;
+              case 40:
+                if(self.direction != 'u')
+                  self.direction = 'd';
+              break;
+              case 37:
+                if(self.direction != 'r')
+                  self.direction = 'l';
+              break;
+              case 39:
+                if(self.direction != 'l')
+                  self.direction = 'r';
+              break;
+              case 13:
+                if(self.dead){
+                  self.resetGame();
+                }
+              break;
+            }
+            if(!self.dead)
+              self.keyRead = true;
+          }
+        });
+      }
+      
+      Game.prototype.resetGame = function() {
+        this.paused = false;
+        this.speed = 200;
+        this.keyRead = false;
+        this.dead = false;
+        this.direction = 'r';
+        this.snake = [[0, 0], [10, 0], [20, 0]];
+        this.food = [];
+        this.points = 0;
+        this.generateFood();
+        var self = this;
+        this.running = setInterval(function(){self.run()}, this.speed);
+      };
+      
+      Game.prototype.generateFood = function() {
+        var c = document.getElementById('snake');
+        var ret = [];
+        var done = false
+        while(ret.length == 0){
+          ret.push(Math.round(Math.floor(Math.random() * (c.width - 9)) / 10) * 10);
+          ret.push(Math.round(Math.floor(Math.random() * (c.height - 9)) / 10) * 10);
+          for(var i in this.snake){
+            if(this.snake[i][0] == ret[0] && this.snake[i][1] == ret[1]){
+              ret = [];
+              break;
+            }
+          }
+        }
+        this.food.push(ret);
+      };
+      
+      Game.prototype.run = function() {
+        this.update();
+        this.draw();
+        this.keyRead = false;
+      };
+      
+      Game.prototype.update = function() {
+        if(this.paused)
+          return;
+        var c = document.getElementById('snake');
+        var len = this.snake.length - 1;
+        var fLen = this.food.length - 1;
+        
+        this.checkDeath();
+        
+        if(this.snake[len][0] == this.food[fLen][0] && this.snake[len][1] == this.food[fLen][1]){
+          this.points++;
+          this.generateFood();
+          if(this.points % 5 == 0){
+            clearInterval(this.running);
+            this.speed = this.speed - 10;
+            var self = this;
+            this.running = setInterval(function(){self.run()}, this.speed);
+          }
+        }
+        
+        var shift = true;
+        if(this.snake[0][0] == this.food[0][0] && this.snake[0][1] == this.food[0][1]){
+          shift = false
+          this.food.shift();
+        }
+        
+        switch(this.direction){
+          case 'u':
+            if(this.snake[len][1] == 0){
+              var y = c.height - 10;
+            }else{
+              var y = this.snake[len][1] - 10;
+            }
+            var x = this.snake[len][0];
+          break;
+          case 'd':
+            if(this.snake[len][1] == (c.height - 10)){
+              var y = 0;
+            }else{
+              var y = this.snake[len][1] + 10;
+            }
+            var x = this.snake[len][0];
+          break;
+          case 'l':
+            if(this.snake[len][0] == 0){
+              var x = c.width - 10;
+            }else{
+              var x = this.snake[len][0] - 10;
+            }
+            var y = this.snake[len][1];
+          break;
+          case 'r':
+            if(this.snake[len][0] == (c.width - 10)){
+              var x = 0;
+            }else{
+              var x = this.snake[len][0] + 10;
+            }
+            var y = this.snake[len][1];
+          break;
+        }
+        this.snake.push([x, y]);
+        if(shift)
+          this.snake.shift();
+      };
+      
+      Game.prototype.draw = function() {
+        var c = document.getElementById('snake');
+        var ctx = c.getContext('2d');
+        c.width = c.width;
+        if(this.dead){
+          ctx.fillRect(0, 0, c.width, c.height);
+          ctx.fillStyle = 'rgb(255, 255, 255)';
+          ctx.font = '30pt Calibri';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('Quack!', c.width / 2, c.height / 2.4);
+          ctx.font = '10pt Calibri';
+          ctx.fillText('Kogusid ' + this.points + ' punkti.', c.width / 2, (c.height / 2.4) + 30);
+          ctx.fillText('Vajuta Enterit, et uuesti alustada.', c.width / 2, (c.height / 2.4) + 50);
+          clearInterval(this.running);
+        }else{
+          ctx.save();
+          ctx.fillStyle = 'rgb(255, 0, 0)';
+          var fLen = this.food.length - 1;
+          ctx.fillRect(this.food[fLen][0], this.food[fLen][1], 10, 10);
+          ctx.restore();
+          for(var i in this.snake){
+            ctx.fillRect(this.snake[i][0], this.snake[i][1], 10, 10);
+          }
+          ctx.font = '8pt Calibri';
+          ctx.fillText('Punkte: ' + this.points, 5, 195);
+          if(this.paused) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            ctx.fillRect(0, 0, c.width, c.height);
+            ctx.fillStyle = 'rgb(255, 255, 255)';
+            ctx.font = '30pt Calibri';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Paus', c.width / 2, c.height / 2.3);
+            ctx.font = '10pt Calibri';
+            ctx.fillText('Mine joo tassike teed!', c.width / 2, (c.height / 2.3) + 30);
+          }
+        }
+      }
+      
+      Game.prototype.checkDeath = function() {
+        var len = this.snake.length - 1;
+        for(var i = 0; i < len; i++) {
+          if(this.snake[i][0] == this.snake[len][0] && this.snake[i][1] == this.snake[len][1]){
+            this.dead = true;
+            this.paused = false;
+            return;
+          }
+        }
+      };
+    </script>
+	
+	<style>
+    body {
+      font-family: Calibri;
+    }
+	  #snake {
+	    border: 5px solid black;
+		padding: 1px;
+	  }
+	</style>
+  </head>
+
+  <body>
+    <canvas id="snake" width="200" height="200">
+    </canvas>
+    <br />
+    P = Paus
+  </body>
+</html>
